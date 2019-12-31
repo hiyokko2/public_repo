@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import random
 
 
 class ArmedBandit:
@@ -62,20 +63,48 @@ class GreedyAgent:
 
 
 
-n_tasks = 2000
-n_arms = 10
+class eGreedyAgent:
+    def __init__(self, n_actions, e):
+        self.Q_t_a = np.zeros(n_actions)
+        self.pre_action = None
+        self.n_actions = n_actions
+        self.e = e
+        self.rewards = [[] for i in range(n_actions)]
 
-tasks = [ArmedBandit(n_arms) for i in range(n_tasks)]
-g_agents = [GreedyAgent(n_arms) for i in range(n_tasks)]
-# tasks = [ArmedBandit(10) for i in range(5)]
-# print(tasks)
+
+    def select_action(self):
+        if random.random() < self.e:
+            # e未満ならランダムに行動選択
+            action = random.randint(0, self.n_actions - 1)
+            self.pre_action = action
+            return action
+
+        action = np.argmax(self.Q_t_a)
+        self.pre_action = action
+
+        return action
+
+    
+    def reward(self, r, show_Q_t_a = False):
+        self.rewards[self.pre_action].append(r)
+        self.update_Q_t_a(self.pre_action)
+        if show_Q_t_a:
+            print("現在の行動価値Q_t_aは")
+            print(self.Q_t_a)
+
+
+    # self.reward()で報酬が与えられた後、行動価値self.Q_t_aを更新する
+    def update_Q_t_a(self, action):
+        self.Q_t_a[action] = sum(self.rewards[action]) / len(self.rewards[action])
+
+
+
+
 
 # task = ArmedBandit(n_arms)
 # # print(task.pull_arm(1, True))
 # g_agent = GreedyAgent(n_arms)
 # # print(g_agent.select_action())
-
-n_plays = 300
 
 # rewards = []
 # averages = []
@@ -95,23 +124,49 @@ n_plays = 300
 # plt.plot(x, averages)
 # plt.show()
 
-averages = []
 
-for i in range(n_plays):
-    print(f"¥n¥n############# play {i} ##############")
+def learn(n_plays, agents, tasks):
+    # global n_tasks
 
-    rewards = []
-    for j in range(n_tasks):
-        selected_action = g_agents[j].select_action()
-        # reward = tasks[j].pull_arm(selected_action, True)
-        reward = tasks[j].pull_arm(selected_action)
-        rewards.append(reward)
-        g_agents[j].reward(reward)
+    n_agent = len(agents)
+    averages = []
 
-    reward_avg = sum(rewards) / len(rewards)
-    averages.append(reward_avg)
-    print(f"平均報酬は {reward_avg}")
+    for i in range(n_plays):
+        print(f"\n\n############# play {i} ##############")
+
+        rewards = []
+        for j in range(n_agent):
+            selected_action = agents[j].select_action()
+            # reward = tasks[j].pull_arm(selected_action, True)
+            reward = tasks[j].pull_arm(selected_action)
+            rewards.append(reward)
+            agents[j].reward(reward)
+
+        reward_avg = sum(rewards) / len(rewards)
+        averages.append(reward_avg)
+        print(f"平均報酬は {reward_avg}")
+
+    return averages
+
+
+
+n_plays = 1000
+n_tasks = 2000
+n_arms = 10
+
+tasks = [ArmedBandit(n_arms) for i in range(n_tasks)]
+g_agents = [GreedyAgent(n_arms) for i in range(n_tasks)]
+e_g_agents = [eGreedyAgent(n_arms, 0.1) for i in range(n_tasks)]
+e_g_agents_2 = [eGreedyAgent(n_arms, 0.05) for i in range(n_tasks)]
+
+g_avgs = learn(n_plays, g_agents, tasks)
+e_g_avgs = learn(n_plays, e_g_agents, tasks)
+e_g_avgs_2 = learn(n_plays, e_g_agents_2, tasks)
 
 x = [i for i in range(n_plays)]
-plt.plot(x, averages)
+plt.plot(x, g_avgs, color="red")
+plt.plot(x, e_g_avgs, color="blue")
+plt.plot(x, e_g_avgs_2, color="green")
 plt.show()
+
+
